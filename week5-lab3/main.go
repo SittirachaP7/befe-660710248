@@ -49,6 +49,5 @@ func main() {
 	{
 		api.GET("/students", getStudent)
 	}
-
 	r.Run(":8080")
 }

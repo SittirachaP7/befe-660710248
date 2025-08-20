@@ -20,4 +20,5 @@ func main() {
 	r.GET("/users", getUsers)
 
 	r.Run(":8080")
+
 }
