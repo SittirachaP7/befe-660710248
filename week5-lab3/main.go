@@ -7,35 +7,35 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Book struct
-type Book struct {
-	ID     string  `json:"id"`
-	Title  string  `json:"title"`
-	Author string  `json:"author"`
-	Year   int     `json:"year"`
-	Rating float64 `json:"rating"`
+// Student struct
+type Student struct {
+	ID    string  `json:"id"`
+	Name  string  `json:"name"`
+	Email string  `json:"email"`
+	Year  int     `json:"year"`
+	GPA   float64 `json:"gpa"`
 }
 
 // In-memory database (ในโปรเจคจริงใช้ database)
-var books = []Book{
-	{ID: "1", Title: "Go Programming", Author: "John Doe", Year: 2021, Rating: 4.5},
-	{ID: "2", Title: "Web Development with Gin", Author: "Jane Smith", Year: 2022, Rating: 4.8},
+var students = []Student{
+	{ID: "1", Name: "John Doe", Email: "john@example.com", Year: 3, GPA: 3.50},
+	{ID: "2", Name: "Jane Smith", Email: "jane@example.com", Year: 2, GPA: 3.75},
 }
 
-func getBooks(c *gin.Context) {
+func getStudent(c *gin.Context) {
 	yearQuery := c.Query("year")
 
 	if yearQuery != "" {
-		filter := []Book{}
-		for _, book := range books {
-			if fmt.Sprint(book.Year) == yearQuery {
-				filter = append(filter, book)
+		filter := []Student{}
+		for _, student := range students {
+			if fmt.Sprint(student.Year) == yearQuery {
+				filter = append(filter, student)
 			}
 		}
 		c.JSON(http.StatusOK, filter)
 		return
 	}
-	c.JSON(http.StatusOK, books)
+	c.JSON(http.StatusOK, students)
 }
 
 func main() {
@@ -47,7 +47,7 @@ func main() {
 
 	api := r.Group("/api/v1")
 	{
-		api.GET("/books", getBooks)
+		api.GET("/students", getStudent)
 	}
 
 	r.Run(":8080")
