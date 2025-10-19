@@ -19,15 +19,21 @@ const BookListPage = () => {
     'psychology', 'business', 'technology', 'cooking'
   ];
 
-  useEffect(() => {
-    // Load books from data
+  const fetchBooks = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const booksData = getAllBooks();
-      setBooks(booksData);
-      setFilteredBooks(booksData);
+    try {
+      const data = await fetch('/api/v1/books/').then(res => res.json());
+      setBooks(data);
+      setFilteredBooks(data);
+    } catch (error) {
+      console.error('Error fetching books:', error);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
+  
+  useEffect(() => {
+    fetchBooks();
   }, []);
 
   const handleSearch = (searchTerm) => {

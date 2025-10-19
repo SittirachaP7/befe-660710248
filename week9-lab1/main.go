@@ -27,11 +27,11 @@ type Book struct {
 
 func initDB() {
 	var err error
-	host := getEnv("DB_HOST", "localhost")
-	name := getEnv("DB_NAME", "bookstore")
-	user := getEnv("DB_USER", "bookstore_user")
-	password := getEnv("DB_PASSWORD", "your_strong_password")
-	port := getEnv("DB_PORT", "5432")
+	host := getEnv("DB_HOST", "")
+	name := getEnv("DB_NAME", "")
+	user := getEnv("DB_USER", "")
+	password := getEnv("DB_PASSWORD", "")
+	port := getEnv("DB_PORT", "")
 
 	conSt := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, name)
 
@@ -135,7 +135,7 @@ func createBook(c *gin.Context) {
 		return
 	}
 
-	// ใช้ RETURNING เพื่อดึงค่าที่ database generate (id, timestamps) eiei
+	// ใช้ RETURNING เพื่อดึงค่าที่ database generate (id, timestamps)
 	var id int
 	var created_At, updated_At time.Time
 

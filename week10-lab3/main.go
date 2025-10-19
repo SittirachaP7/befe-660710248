@@ -83,6 +83,16 @@ func getHealth(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "healthy"})
 }
 
+// @Summary     Get book by ID
+// @Description Get details of specific book
+// @Tags        Books
+// @Accept      json
+// @Produce     json
+// @Param       id   path      int  true  "Book ID"
+// @Success     200  {object}  Book
+// @Failure     404  {object}  ErrorResponse
+// @Failure     500  {object}  ErrorResponse
+// @Router      /books/{id} [get]
 func getBook(c *gin.Context) {
 	id := c.Param("id")
 	var book Book
@@ -235,6 +245,18 @@ func createBook(c *gin.Context) {
 	c.JSON(http.StatusCreated, newBook) // ใช้ 201 Created
 }
 
+// @Summary     Update a book
+// @Description Update book details by ID
+// @Tags        Books
+// @Accept      json
+// @Produce     json
+// @Param       id    path      int   true  "Book ID"
+// @Param       book  body      Book  true  "Book object"
+// @Success     200  {object}   Book
+// @Failure     400  {object}   ErrorResponse
+// @Failure     404  {object}   ErrorResponse
+// @Failure     500  {object}   ErrorResponse
+// @Router      /books/{id} [put]
 func updateBook(c *gin.Context) {
 	id := c.Param("id")
 	var updateBook Book
@@ -266,6 +288,16 @@ func updateBook(c *gin.Context) {
 	c.JSON(http.StatusOK, updateBook)
 }
 
+// @Summary     Delete a book
+// @Description Delete book by ID
+// @Tags        Books
+// @Accept      json
+// @Produce     json
+// @Param       id   path      int     true  "Book ID"
+// @Success     200  {object}  map[string]interface{}
+// @Failure     404  {object}  ErrorResponse
+// @Failure     500  {object}  ErrorResponse
+// @Router      /books/{id} [delete]
 func deleteBook(c *gin.Context) {
 	id := c.Param("id")
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 //import BookCard from '../components/BookCard';
 //import LoadingSpinner from '../components/LoadingSpinner';
@@ -11,30 +11,26 @@ const BookDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchBook = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/v1/books/${id}`);
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch book details');
-        }
-
-        const data = await response.json();
-        setBook(data);
-        setError(null);
-      } catch (err) {
-        setError(err.message);
-        console.error('Error fetching book:', err);
-      } finally {
-        setLoading(false);
+  const fetchBookDetail = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`/api/v1/books/${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch book details');
       }
-    };
-
-    if (id) {
-      fetchBook();
+      const data = await response.json();
+      setBook(data);
+    } catch (err) {
+      console.error('Error fetching book details:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  };
+  
+  useEffect(() => {
+    fetchBookDetail();
   }, [id]);
 
   if (loading) {
