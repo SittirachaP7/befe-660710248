@@ -1,4 +1,3 @@
-
 import { ArrowRightIcon, BookOpenIcon, ShieldCheckIcon, TruckIcon } from '@heroicons/react/outline';
 import { Link } from 'react-router-dom';
 import BookCard from '../components/BookCard';

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import BookCard from './BookCard';
+import { getNewBooks } from '../data/booksData';
 
 const NewBooks = () => {
   // กำหนด State สำหรับจัดการข้อมูล
@@ -8,24 +9,29 @@ const NewBooks = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchNewBooks = async () => {
+    const fetchBooks = async () => {
       try {
         setLoading(true);
         
-        // เรียก API เพื่อดึงข้อมูลหนังสือใหม่
-        const response = await fetch('http://localhost:8080/api/v1/books/new');
+        // เรียก API เพื่อดึงข้อมูลหนังสือ
+        const response = await fetch('/api/v1/books');
 
         if (!response.ok) {
-          throw new Error('Failed to fetch new books');
+          throw new Error('Failed to fetch books');
         }
 
         const data = await response.json();
-        setNewBooks(data);
+
+        // สุ่มหนังสือ 3 เล่ม
+        const shuffled = [...data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const selected = shuffled.slice(0, 3);
+
+        setNewBooks(selected);
         setError(null);
         
       } catch (err) {
         setError(err.message);
-        console.error('Error fetching new books:', err);
+        console.error('Error fetching books:', err);
         
       } finally {
         setLoading(false);
@@ -33,7 +39,7 @@ const NewBooks = () => {
     };
 
     // เรียกใช้ฟังก์ชันดึงข้อมูล
-    fetchNewBooks();
+    fetchBooks();
   }, []); // [] = dependency array ว่าง = รันครั้งเดียว
 
   // กรณีกำลังโหลดข้อมูล
@@ -41,7 +47,7 @@ const NewBooks = () => {
     return (
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
         <div className="text-center py-8 col-span-full">
-          Loading new arrivals...
+          Loading...
         </div>
       </div>
     );
