@@ -68,6 +68,7 @@ func verifyToken(tokenString string) (*CustomClaims, error) {
 
 	return nil, fmt.Errorf("invalid token")
 }
+
 func main() {
 	// สร้าง token
 	token, err := generateToken(

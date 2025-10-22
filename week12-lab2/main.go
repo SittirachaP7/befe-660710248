@@ -11,20 +11,20 @@ import (
 
 // Server-side session storage
 type SessionStore struct {
-	sessions map[string]*SessionData
-	mu       sync.RWMutex
+    sessions map[string]*SessionData
+    mu       sync.RWMutex
 }
 
 type SessionData struct {
-	UserID     int
-	Username   string
-	Roles      []string
-	CreatedAt  time.Time
-	LastAccess time.Time
+    UserID      int
+    Username    string
+    Roles       []string
+    CreatedAt   time.Time
+    LastAccess  time.Time
 }
 
 var store = &SessionStore{
-	sessions: make(map[string]*SessionData),
+    sessions: make(map[string]*SessionData),
 }
 
 type User struct {
@@ -41,80 +41,80 @@ func generateRandomID() string {
 
 // Login
 func login(c *gin.Context) {
-	// For demo purposes, creating a mock user
-	user := User{
-		ID:       1,
-		Username: "testuser",
-		Roles:    []string{"admin"},
-	}
+    // For demo purposes, creating a mock user
+    user := User{
+        ID:       1,
+        Username: "testuser",
+        Roles:    []string{"admin"},
+    }
 
-	// สร้าง session ID
-	sessionID := generateRandomID()
+    // สร้าง session ID
+    sessionID := generateRandomID()
 
-	// เก็บ session data
-	store.mu.Lock()
-	store.sessions[sessionID] = &SessionData{
-		UserID:     user.ID,
-		Username:   user.Username,
-		Roles:      user.Roles,
-		CreatedAt:  time.Now(),
-		LastAccess: time.Now(),
-	}
-	store.mu.Unlock()
+    // เก็บ session data
+    store.mu.Lock()
+    store.sessions[sessionID] = &SessionData{
+        UserID:     user.ID,
+        Username:   user.Username,
+        Roles:      user.Roles,
+        CreatedAt:  time.Now(),
+        LastAccess: time.Now(),
+    }
+    store.mu.Unlock()
 
-	// ส่ง cookie
-	c.SetCookie("session_id", sessionID, 3600, "/", "", false, true)
-	// httpOnly=true >> JavaScript access ไม่ได้ (ป้องกัน XSS)
-	c.JSON(200, gin.H{"message": "logged in"})
+    // ส่ง cookie
+    c.SetCookie("session_id", sessionID, 3600, "/", "", false, true)
+    // httpOnly=true >> JavaScript access ไม่ได้ (ป้องกัน XSS)
+    c.JSON(200, gin.H{"message": "logged in"})
 }
 
 // Middleware
 func sessionMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sessionID, err := c.Cookie("session_id")
-		if err != nil {
-			c.JSON(401, gin.H{"error": "unauthorized"})
-			c.Abort()
-			return
-		}
+    return func(c *gin.Context) {
+        sessionID, err := c.Cookie("session_id")
+        if err != nil {
+            c.JSON(401, gin.H{"error": "unauthorized"})
+            c.Abort()
+            return
+        }
 
-		// ดึง session data
-		store.mu.RLock()
-		session, exists := store.sessions[sessionID]
-		store.mu.RUnlock()
+        // ดึง session data
+        store.mu.RLock()
+        session, exists := store.sessions[sessionID]
+        store.mu.RUnlock()
 
-		if !exists {
-			c.JSON(401, gin.H{"error": "invalid session"})
-			c.Abort()
-			return
-		}
+        if !exists {
+            c.JSON(401, gin.H{"error": "invalid session"})
+            c.Abort()
+            return
+        }
 
-		// Update last access
-		store.mu.Lock()
-		session.LastAccess = time.Now()
-		store.mu.Unlock()
+        // Update last access
+        store.mu.Lock()
+        session.LastAccess = time.Now()
+        store.mu.Unlock()
 
-		// เก็บข้อมูล user ใน context
-		c.Set("user_id", session.UserID)
-		c.Set("username", session.Username)
-		c.Set("roles", session.Roles)
+        // เก็บข้อมูล user ใน context
+        c.Set("user_id", session.UserID)
+        c.Set("username", session.Username)
+        c.Set("roles", session.Roles)
 
-		c.Next()
-	}
+        c.Next()
+    }
 }
 
 // Logout
 func logout(c *gin.Context) {
-	sessionID, _ := c.Cookie("session_id")
+    sessionID, _ := c.Cookie("session_id")
 
-	// ลบ session
-	store.mu.Lock()
-	delete(store.sessions, sessionID)
-	store.mu.Unlock()
+    // ลบ session
+    store.mu.Lock()
+    delete(store.sessions, sessionID)
+    store.mu.Unlock()
 
-	// ลบ cookie
-	c.SetCookie("session_id", "", -1, "/", "", false, true)
-	c.JSON(200, gin.H{"message": "logged out"})
+    // ลบ cookie
+    c.SetCookie("session_id", "", -1, "/", "", false, true)
+    c.JSON(200, gin.H{"message": "logged out"})
 }
 
 func main() {

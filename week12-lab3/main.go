@@ -1,205 +1,131 @@
 package main
 
 import (
-	"fmt"
-	"strings"
+	"crypto/rand"
+	"encoding/hex"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
 
-// กำหนด Claims structure
-type CustomClaims struct {
-	UserID      int      `json:"user_id"`
-	Username    string   `json:"username"`
-	Roles       []string `json:"roles"`
-	jwt.RegisteredClaims
+// Server-side session storage
+type SessionStore struct {
+	sessions map[string]*SessionData
+	mu       sync.RWMutex
+}
+
+type SessionData struct {
+	UserID     int
+	Username   string
+	Roles      []string
+	CreatedAt  time.Time
+	LastAccess time.Time
+}
+
+var store = &SessionStore{
+	sessions: make(map[string]*SessionData),
 }
 
 type User struct {
-	ID       int      `json:"id"`
-	Username string   `json:"username"`
-	Password string   `json:"password"`
-	Roles    []string `json:"roles"`
+	ID       int
+	Username string
+	Roles    []string
 }
 
-var secretKey = []byte("my-super-secret-key-change-in-production")
-
-// Mock user database
-var users = map[string]User{
-	"alice": {
-		ID:       1,
-		Username: "alice",
-		Password: "password123",
-		Roles:    []string{"admin"},
-	},
-	"bob": {
-		ID:       2,
-		Username: "bob",
-		Password: "password456",
-		Roles:    []string{"user"},
-	},
-}
-
-// ฟังก์ชันสร้าง JWT
-func generateToken(userID int, username string, roles []string) (string, error) {
-	// กำหนดเวลาหมดอายุ (24 ชั่วโมง)
-	expirationTime := time.Now().Add(24 * time.Hour)
-
-	// สร้าง claims
-	claims := &CustomClaims{
-		UserID:   userID,
-		Username: username,
-		Roles:    roles,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "bookstore-api",
-		},
-	}
-
-	// สร้าง token ด้วย claims
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	// Sign token ด้วย secret key
-	tokenString, err := token.SignedString(secretKey)
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
-}
-
-// ฟังก์ชันตรวจสอบ JWT
-func verifyToken(tokenString string) (*CustomClaims, error) {
-	// Parse token
-	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// ตรวจสอบ algorithm
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return secretKey, nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	// ดึง claims
-	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
-		return claims, nil
-	}
-
-	return nil, fmt.Errorf("invalid token")
+func generateRandomID() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // Login
 func login(c *gin.Context) {
-	var credentials struct {
-		Username string `json:"username" binding:"required"`
-		Password string `json:"password" binding:"required"`
+	// For demo purposes, creating a mock user
+	user := User{
+		ID:       1,
+		Username: "testuser",
+		Roles:    []string{"admin"},
 	}
 
-	if err := c.ShouldBindJSON(&credentials); err != nil {
-		c.JSON(400, gin.H{"error": "invalid request"})
-		return
-	}
+	// สร้าง session ID
+	sessionID := generateRandomID()
 
-	// ตรวจสอบ credentials
-	user, exists := users[credentials.Username]
-	if !exists || user.Password != credentials.Password {
-		c.JSON(401, gin.H{"error": "invalid credentials"})
-		return
+	// เก็บ session data
+	store.mu.Lock()
+	store.sessions[sessionID] = &SessionData{
+		UserID:     user.ID,
+		Username:   user.Username,
+		Roles:      user.Roles,
+		CreatedAt:  time.Now(),
+		LastAccess: time.Now(),
 	}
+	store.mu.Unlock()
 
-	// สร้าง JWT
-	token, err := generateToken(user.ID, user.Username, user.Roles)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "failed to generate token"})
-		return
-	}
-
-	// ส่ง token กลับ
-	c.JSON(200, gin.H{
-		"token": token,
-		"user": gin.H{
-			"id":       user.ID,
-			"username": user.Username,
-			"roles":    user.Roles,
-		},
-	})
+	// ส่ง cookie
+	c.SetCookie("session_id", sessionID, 3600, "/", "", false, true)
+	// httpOnly=true >> JavaScript access ไม่ได้ (ป้องกัน XSS)
+	c.JSON(200, gin.H{"message": "logged in"})
 }
 
 // Middleware
-func authMiddleware() gin.HandlerFunc {
+func sessionMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// ดึง token จาก header
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(401, gin.H{"error": "authorization header required"})
-			c.Abort()
-			return
-		}
-
-		// Format: "Bearer <token>"
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-		// Verify token
-		claims, err := verifyToken(tokenString)
+		sessionID, err := c.Cookie("session_id")
 		if err != nil {
-			c.JSON(401, gin.H{"error": "invalid token"})
+			c.JSON(401, gin.H{"error": "unauthorized"})
 			c.Abort()
 			return
 		}
 
-		// เก็บข้อมูล user
-		c.Set("user_id", claims.UserID)
-		c.Set("username", claims.Username)
-		c.Set("roles", claims.Roles)
+		// ดึง session data
+		store.mu.RLock()
+		session, exists := store.sessions[sessionID]
+		store.mu.RUnlock()
+
+		if !exists {
+			c.JSON(401, gin.H{"error": "invalid session"})
+			c.Abort()
+			return
+		}
+
+		// Update last access
+		store.mu.Lock()
+		session.LastAccess = time.Now()
+		store.mu.Unlock()
+
+		// เก็บข้อมูล user ใน context
+		c.Set("user_id", session.UserID)
+		c.Set("username", session.Username)
+		c.Set("roles", session.Roles)
 
 		c.Next()
 	}
 }
 
-// Middleware สำหรับตรวจสอบ role
-func requireRole(requiredRole string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		roles, exists := c.Get("roles")
-		if !exists {
-			c.JSON(403, gin.H{"error": "forbidden"})
-			c.Abort()
-			return
-		}
+// Logout
+func logout(c *gin.Context) {
+	sessionID, _ := c.Cookie("session_id")
 
-		rolesList := roles.([]string)
-		hasRole := false
-		for _, role := range rolesList {
-			if role == requiredRole {
-				hasRole = true
-				break
-			}
-		}
+	// ลบ session
+	store.mu.Lock()
+	delete(store.sessions, sessionID)
+	store.mu.Unlock()
 
-		if !hasRole {
-			c.JSON(403, gin.H{"error": "insufficient permissions"})
-			c.Abort()
-			return
-		}
-
-		c.Next()
-	}
+	// ลบ cookie
+	c.SetCookie("session_id", "", -1, "/", "", false, true)
+	c.JSON(200, gin.H{"message": "logged out"})
 }
 
 func main() {
 	r := gin.Default()
 
-	// Public routes
 	r.POST("/login", login)
+	r.POST("/logout", logout)
 
 	// Protected routes
 	protected := r.Group("/")
-	protected.Use(authMiddleware())
+	protected.Use(sessionMiddleware())
 	{
 		protected.GET("/profile", func(c *gin.Context) {
 			username, _ := c.Get("username")
@@ -209,17 +135,7 @@ func main() {
 				"roles":    roles,
 			})
 		})
-
-		// Admin only route
-		protected.GET("/admin", requireRole("admin"), func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"message": "Welcome admin!",
-			})
-		})
 	}
 
-	fmt.Println("Server running on :9999")
-	fmt.Println("Try:")
-	fmt.Println("  curl -X POST http://localhost:9999/login -H 'Content-Type: application/json' -d '{\"username\":\"alice\",\"password\":\"password123\"}'")
 	r.Run(":9999")
 }
